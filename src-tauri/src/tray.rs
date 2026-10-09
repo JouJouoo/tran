@@ -43,19 +43,19 @@ pub fn update_tray(app_handle: tauri::AppHandle, mut language: String, mut copy_
         language, copy_mode
     );
     let menu = match language.as_str() {
-            "en" => tray_menu_en(),
-            "zh_cn" => tray_menu_zh_cn(),
-            "zh_tw" => tray_menu_zh_tw(),
-            "ja" => tray_menu_ja(),
-            "ko" => tray_menu_ko(),
-            "fr" => tray_menu_fr(),
-            "de" => tray_menu_de(),
-            "ru" => tray_menu_ru(),
-            "pt_br" => tray_menu_pt_br(),
-            "fa" => tray_menu_fa(),
-            "uk" => tray_menu_uk(),
-            _ => tray_menu_en(),
-        };
+        "en" => tray_menu_en(),
+        "zh_cn" => tray_menu_zh_cn(),
+        "zh_tw" => tray_menu_zh_tw(),
+        "ja" => tray_menu_ja(),
+        "ko" => tray_menu_ko(),
+        "fr" => tray_menu_fr(),
+        "de" => tray_menu_de(),
+        "ru" => tray_menu_ru(),
+        "pt_br" => tray_menu_pt_br(),
+        "fa" => tray_menu_fa(),
+        "uk" => tray_menu_uk(),
+        _ => tray_menu_en(),
+    };
     let naming_label = match language.as_str() {
         "zh_cn" => "命名翻译",
         "zh_tw" => "命名翻譯",

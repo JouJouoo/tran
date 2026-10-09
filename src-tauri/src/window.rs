@@ -275,6 +275,8 @@ pub fn naming_window() -> Window {
         window.set_size(tauri::LogicalSize::new(520, 360)).unwrap();
         window.center().unwrap();
     }
+    window.show().unwrap();
+    window.set_focus().unwrap();
     window
 }
 

@@ -14,7 +14,7 @@ import {
 } from '@nextui-org/react';
 import toast, { Toaster } from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { MdContentCopy } from 'react-icons/md';
 
 import { useConfig, useToastStyle } from '../../hooks';
@@ -86,6 +86,7 @@ export default function Naming() {
     const [format, setFormat] = useConfig('naming_format', 'snake_case');
     const [autoCopy, setAutoCopy] = useConfig('naming_auto_copy', true);
     const toastStyle = useToastStyle();
+    const inputRef = useRef(null);
 
     useEffect(() => {
         if (appWindow.label === 'naming') {
@@ -97,9 +98,7 @@ export default function Naming() {
             setInput(text);
             setResult('');
             setRawResult('');
-            if (!text.trim()) {
-                toast.error(t('naming.no_selection'), { style: toastStyle });
-            }
+            setTimeout(() => inputRef.current?.focus(), 50);
         });
         return () => {
             unlisten.then((dispose) => dispose());
@@ -157,6 +156,7 @@ export default function Naming() {
             <Card className='h-full'>
                 <CardBody className='gap-4'>
                     <Input
+                        ref={inputRef}
                         label={t('naming.input')}
                         placeholder={t('naming.input_placeholder')}
                         value={input}

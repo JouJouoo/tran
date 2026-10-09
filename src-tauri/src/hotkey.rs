@@ -1,5 +1,7 @@
 use crate::config::{get, set};
-use crate::window::{input_translate, naming_translate, ocr_recognize, ocr_translate, selection_translate};
+use crate::window::{
+    input_translate, naming_translate, ocr_recognize, ocr_translate, selection_translate,
+};
 use crate::APP;
 use log::{info, warn};
 use tauri::{AppHandle, GlobalShortcutManager};
