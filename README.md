@@ -34,7 +34,7 @@ API 地址固定为官方地址：`https://api.deepseek.com/chat/completions`。
 - 默认格式：`snake_case`。
 - 支持格式：`snake_case`、`camelCase`、`PascalCase`、`kebab-case`。
 - 文件扩展名保持不变，例如 `用户配置.json` 会输出 `user_config.json`。
-- 默认快捷键：`Alt+T`，可以在设置中修改。
+- 默认快捷键：`Alt+M`，可以在设置中修改。
 - 结果默认自动复制，也可以手动点击复制。
 
 ## 安装

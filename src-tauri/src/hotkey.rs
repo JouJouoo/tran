@@ -51,7 +51,15 @@ where
     F: Fn() + Send + 'static,
 {
     let hotkey = match get(name) {
-        Some(v) => v.as_str().unwrap().to_string(),
+        Some(v) => {
+            let current = v.as_str().unwrap().to_string();
+            if name == "hotkey_naming_translate" && current == "Alt+T" {
+                set(name, default_key);
+                default_key.to_string()
+            } else {
+                current
+            }
+        }
         None => {
             set(name, default_key);
             default_key.to_string()
@@ -84,7 +92,7 @@ pub fn register_shortcut(shortcut: &str) -> Result<(), String> {
             app_handle,
             "hotkey_naming_translate",
             naming_translate,
-            "Alt+T",
+            "Alt+M",
         )?,
         "hotkey_ocr_recognize" => register(app_handle, "hotkey_ocr_recognize", ocr_recognize, "")?,
         "hotkey_ocr_translate" => register(app_handle, "hotkey_ocr_translate", ocr_translate, "")?,
@@ -100,7 +108,7 @@ pub fn register_shortcut(shortcut: &str) -> Result<(), String> {
                 app_handle,
                 "hotkey_naming_translate",
                 naming_translate,
-                "Alt+T",
+                "Alt+M",
             )?;
             register(app_handle, "hotkey_ocr_recognize", ocr_recognize, "")?;
             register(app_handle, "hotkey_ocr_translate", ocr_translate, "")?;
