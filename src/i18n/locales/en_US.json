@@ -168,6 +168,7 @@
                 "recognize": "Recognize",
                 "collection": "Collection",
                 "least": "Please keep at least one",
+                "required_service": "DeepSeek is a required built-in service and cannot be removed",
                 "add_builtin_service": "Add Builtin Service",
                 "add_external_service": "Add Extension",
                 "add_service": "Add Service",

@@ -79,6 +79,8 @@ export default function ServiceItem(props) {
                         size='sm'
                         variant='light'
                         color='danger'
+                        isDisabled={serviceName === 'deepseek'}
+                        title={serviceName === 'deepseek' ? t('config.service.required_service') : undefined}
                         onPress={() => {
                             deleteServiceInstance(serviceInstanceKey);
                         }}

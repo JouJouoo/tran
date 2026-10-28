@@ -61,8 +61,10 @@ fn get_current_monitor(x: i32, y: i32) -> Monitor {
 fn set_taskbar_icon(window: &Window) {
     use windows::Win32::Foundation::{HWND, LPARAM, WPARAM};
     use windows::Win32::UI::WindowsAndMessaging::{
-        SendMessageW, ICON_BIG, ICON_SMALL, WM_GETICON, WM_SETICON,
+        CopyIcon, SendMessageW, SetClassLongPtrW, GCLP_HICON, GCLP_HICONSM, HICON, ICON_BIG,
+        ICON_SMALL, WM_GETICON, WM_SETICON,
     };
+    static TASKBAR_ICON: std::sync::OnceLock<isize> = std::sync::OnceLock::new();
 
     let hwnd = match window.hwnd() {
         Ok(hwnd) => HWND(hwnd.0 as _),
@@ -74,15 +76,32 @@ fn set_taskbar_icon(window: &Window) {
 
     let small_icon = unsafe { SendMessageW(hwnd, WM_GETICON, WPARAM(ICON_SMALL as usize), LPARAM(0)) };
     if small_icon.0 != 0 {
-        // Tauri's window icon sets ICON_SMALL. Windows uses ICON_BIG for the taskbar.
-        // The window retains the small icon handle for its lifetime, so it is safe to reuse.
+        // Keep a process-lifetime icon handle because Windows also stores the class icon.
+        let taskbar_icon = *TASKBAR_ICON.get_or_init(|| {
+            unsafe { CopyIcon(HICON(small_icon.0 as *mut _)) }
+                .map(|icon| icon.0 as isize)
+                .unwrap_or_else(|error| {
+                    warn!("Failed to copy taskbar icon: {:?}", error);
+                    small_icon.0
+                })
+        });
+
+        // Windows can read the taskbar icon from both the window and its window class.
         unsafe {
             SendMessageW(
                 hwnd,
                 WM_SETICON,
                 WPARAM(ICON_BIG as usize),
-                LPARAM(small_icon.0),
+                LPARAM(taskbar_icon),
             );
+            SendMessageW(
+                hwnd,
+                WM_SETICON,
+                WPARAM(ICON_SMALL as usize),
+                LPARAM(taskbar_icon),
+            );
+            SetClassLongPtrW(hwnd, GCLP_HICON, taskbar_icon);
+            SetClassLongPtrW(hwnd, GCLP_HICONSM, taskbar_icon);
         }
     } else {
         warn!("Window has no small icon to use for its taskbar icon");

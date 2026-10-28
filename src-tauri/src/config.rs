@@ -78,6 +78,7 @@ pub fn check_service_available() -> Result<(), Error> {
         "cambridge_dict",
         "chatglm",
         "deepl",
+        "deepseek",
         "ecdict",
         "lingva",
         "geminipro",
@@ -133,6 +134,18 @@ pub fn check_service_available() -> Result<(), Error> {
             plugin_collection_list,
             "collection_service_list",
         );
+    }
+
+    if let Some(translate_service_list) = get("translate_service_list") {
+        let mut translate_service_list: Vec<String> = serde_json::from_value(translate_service_list)?;
+        if !translate_service_list
+            .iter()
+            .any(|service| service.split('@').next() == Some("deepseek"))
+        {
+            translate_service_list.push("deepseek".to_string());
+            set("translate_service_list", translate_service_list);
+            info!("Added DeepSeek to the translation service list");
+        }
     }
     Ok(())
 }
