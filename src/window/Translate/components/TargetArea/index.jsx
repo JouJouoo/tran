@@ -52,7 +52,7 @@ import {
 
 let translateID = [];
 
-async function findScreenshotDeepSeekConfig(translateServiceInstanceList, serviceInstanceConfigMap) {
+async function findDeepSeekConfig(translateServiceInstanceList, serviceInstanceConfigMap) {
     const isDeepSeekInstance = (key) => !whetherPluginService(key) && getServiceName(key) === 'deepseek';
     const activeInstanceKeys = translateServiceInstanceList.filter(isDeepSeekInstance);
     const storedInstanceKeys = (await store.keys())
@@ -206,6 +206,41 @@ export default function TargetArea(props) {
         translateID[index] = id;
 
         const translateServiceName = getServiceName(currentTranslateServiceInstanceKey);
+        let fallbackInstanceConfig;
+
+        if (!imageTranslateBase64 && index === -1) {
+            setIsLoading(true);
+            let deepseekInstance;
+            try {
+                deepseekInstance = await findDeepSeekConfig(translateServiceInstanceList, serviceInstanceConfigMap);
+            } catch (error) {
+                setError(error instanceof Error ? error.message : String(error));
+                setIsLoading(false);
+                setHide(false);
+                return;
+            }
+
+            if (!deepseekInstance) {
+                setError(t('translate.deepseek_required'));
+                setIsLoading(false);
+                setHide(false);
+                return;
+            }
+
+            if (!deepseekInstance.config.apiKey) {
+                setError(t('translate.deepseek_required'));
+                setIsLoading(false);
+                setHide(false);
+                return;
+            }
+
+            if (currentTranslateServiceInstanceKey !== deepseekInstance.instanceKey) {
+                setCurrentTranslateServiceInstanceKey(deepseekInstance.instanceKey);
+                return;
+            }
+
+            fallbackInstanceConfig = deepseekInstance.config;
+        }
 
         if (imageTranslateBase64) {
             if (index !== firstEnabledServiceIndex) {
@@ -222,7 +257,7 @@ export default function TargetArea(props) {
             setHide(true);
             let deepseekInstance;
             try {
-                deepseekInstance = await findScreenshotDeepSeekConfig(
+                deepseekInstance = await findDeepSeekConfig(
                     translateServiceInstanceList,
                     serviceInstanceConfigMap
                 );
@@ -408,7 +443,8 @@ export default function TargetArea(props) {
                 }
                 setIsLoading(true);
                 setHide(true);
-                const instanceConfig = serviceInstanceConfigMap[currentTranslateServiceInstanceKey];
+                const instanceConfig =
+                    serviceInstanceConfigMap[currentTranslateServiceInstanceKey] ?? fallbackInstanceConfig;
                 const setHideOnce = invokeOnce(setHide);
                 builtinServices[translateServiceName]
                     .translate(sourceText.trim(), LanguageEnum[sourceLanguage], LanguageEnum[newTargetLanguage], {

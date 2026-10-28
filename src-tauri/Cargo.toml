@@ -1,6 +1,6 @@
 [package]
 name = "tran"
-version = "1.0.2"
+version = "1.0.3"
 description = "tran"
 authors = ["JouJouoo"]
 license = "GPL-3.0-only"

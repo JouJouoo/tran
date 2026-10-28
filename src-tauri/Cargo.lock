@@ -6977,7 +6977,7 @@ dependencies = [
 
 [[package]]
 name = "tran"
-version = "1.0.2"
+version = "1.0.3"
 dependencies = [
  "arboard",
  "base64 0.22.1",
