@@ -475,7 +475,8 @@
             "copy": "复制",
             "retry": "重试",
             "delete_newline": "删除换行",
-            "translate_back": "翻译回原文"
+            "translate_back": "翻译回原文",
+            "screenshot_deepseek_required": "截图翻译需要已保存 DeepSeek API 密钥，请在翻译服务设置中配置。"
         },
         "naming": {
             "input": "中文名称",

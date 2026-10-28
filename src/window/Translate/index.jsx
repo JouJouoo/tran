@@ -8,9 +8,10 @@ import { AiFillCloseCircle } from 'react-icons/ai';
 import React, { useState, useEffect } from 'react';
 import { listen } from '@tauri-apps/api/event';
 import { BsPinFill } from 'react-icons/bs';
+import { useAtomValue } from 'jotai';
 
 import LanguageArea from './components/LanguageArea';
-import SourceArea from './components/SourceArea';
+import SourceArea, { imageTranslateBase64Atom } from './components/SourceArea';
 import TargetArea from './components/TargetArea';
 import { osType } from '../../utils/env';
 import { useConfig } from '../../hooks';
@@ -64,6 +65,7 @@ void listen('tauri://move', () => {
 });
 
 export default function Translate() {
+    const imageTranslateBase64 = useAtomValue(imageTranslateBase64Atom);
     const [closeOnBlur] = useConfig('translate_close_on_blur', true);
     const [alwaysOnTop] = useConfig('translate_always_on_top', false);
     const [windowPosition] = useConfig('translate_window_position', 'mouse');
@@ -338,6 +340,21 @@ export default function Translate() {
                                 )}
                             </Droppable>
                         </DragDropContext>
+                        {imageTranslateBase64 &&
+                            translateServiceInstanceList !== null &&
+                            serviceInstanceConfigMap !== null &&
+                            !translateServiceInstanceList.some((serviceInstanceKey) => {
+                                const config = serviceInstanceConfigMap[serviceInstanceKey] ?? {};
+                                return config.enable ?? true;
+                            }) && (
+                                <TargetArea
+                                    index={-1}
+                                    name='deepseek'
+                                    translateServiceInstanceList={translateServiceInstanceList}
+                                    pluginList={pluginList}
+                                    serviceInstanceConfigMap={serviceInstanceConfigMap}
+                                />
+                            )}
                     </div>
                 </div>
             </div>

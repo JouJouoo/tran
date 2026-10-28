@@ -30,6 +30,7 @@ import { useAtomValue } from 'jotai';
 import { nanoid } from 'nanoid';
 import { useSpring, animated } from '@react-spring/web';
 import useMeasure from 'react-use-measure';
+import { store } from '../../../../utils/store';
 
 import * as builtinCollectionServices from '../../../../services/collection';
 import { sourceLanguageAtom, targetLanguageAtom } from '../LanguageArea';
@@ -50,6 +51,28 @@ import {
 } from '../../../../utils/service_instance';
 
 let translateID = [];
+
+async function findScreenshotDeepSeekConfig(translateServiceInstanceList, serviceInstanceConfigMap) {
+    const isDeepSeekInstance = (key) => !whetherPluginService(key) && getServiceName(key) === 'deepseek';
+    const activeInstanceKeys = translateServiceInstanceList.filter(isDeepSeekInstance);
+    const storedInstanceKeys = (await store.keys())
+        .filter(isDeepSeekInstance)
+        .sort((left, right) => {
+            if (left === 'deepseek') return -1;
+            if (right === 'deepseek') return 1;
+            return left.localeCompare(right);
+        });
+    const candidateKeys = [...new Set([...activeInstanceKeys, ...storedInstanceKeys])];
+
+    for (const instanceKey of candidateKeys) {
+        const config = serviceInstanceConfigMap[instanceKey] ?? (await store.get(instanceKey));
+        if (config?.apiKey) {
+            return { instanceKey, config };
+        }
+    }
+
+    return null;
+}
 
 export default function TargetArea(props) {
     const { index, name, translateServiceInstanceList, pluginList, serviceInstanceConfigMap, ...drag } = props;
@@ -195,29 +218,36 @@ export default function TargetArea(props) {
                 lastImageTargetLanguageRef.current === targetLanguage
             ) return;
 
-            const deepseekInstanceKey = translateServiceInstanceList.find((serviceInstanceKey) => {
-                const instanceConfig = serviceInstanceConfigMap[serviceInstanceKey] ?? {};
-                return (
-                    !whetherPluginService(serviceInstanceKey) &&
-                    getServiceName(serviceInstanceKey) === 'deepseek' &&
-                    (instanceConfig.enable ?? true)
+            setIsLoading(true);
+            setHide(true);
+            let deepseekInstance;
+            try {
+                deepseekInstance = await findScreenshotDeepSeekConfig(
+                    translateServiceInstanceList,
+                    serviceInstanceConfigMap
                 );
-            });
-
-            if (!deepseekInstanceKey) {
-                setError('Add and configure DeepSeek in translation services to translate screenshots.');
+            } catch (error) {
+                setError(error instanceof Error ? error.message : String(error));
                 setIsLoading(false);
                 setHide(false);
                 return;
             }
+
+            if (!deepseekInstance) {
+                setError(t('translate.screenshot_deepseek_required'));
+                setIsLoading(false);
+                setHide(false);
+                return;
+            }
+
+            const { instanceKey: deepseekInstanceKey, config: deepseekConfig } = deepseekInstance;
             if (currentTranslateServiceInstanceKey !== deepseekInstanceKey) {
                 setCurrentTranslateServiceInstanceKey(deepseekInstanceKey);
                 return;
             }
 
-            const deepseekConfig = serviceInstanceConfigMap[deepseekInstanceKey] ?? {};
             if (!deepseekConfig.apiKey) {
-                setError('Configure a DeepSeek API key to translate screenshots.');
+                setError(t('translate.screenshot_deepseek_required'));
                 setIsLoading(false);
                 setHide(false);
                 return;

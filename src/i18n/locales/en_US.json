@@ -475,7 +475,8 @@
             "copy": "Copy",
             "retry": "Try again",
             "delete_newline": "Delete Newline",
-            "translate_back": "Translation back to the original"
+            "translate_back": "Translation back to the original",
+            "screenshot_deepseek_required": "Screenshot translation requires a saved DeepSeek API key. Configure it in translation services."
         },
         "naming": {
             "input": "Chinese Name",

@@ -57,6 +57,38 @@ fn get_current_monitor(x: i32, y: i32) -> Monitor {
     daemon_window.primary_monitor().unwrap().unwrap()
 }
 
+#[cfg(target_os = "windows")]
+fn set_taskbar_icon(window: &Window) {
+    use windows::Win32::Foundation::{HWND, LPARAM, WPARAM};
+    use windows::Win32::UI::WindowsAndMessaging::{
+        SendMessageW, ICON_BIG, ICON_SMALL, WM_GETICON, WM_SETICON,
+    };
+
+    let hwnd = match window.hwnd() {
+        Ok(hwnd) => HWND(hwnd.0 as _),
+        Err(error) => {
+            warn!("Failed to get window handle for taskbar icon: {:?}", error);
+            return;
+        }
+    };
+
+    let small_icon = unsafe { SendMessageW(hwnd, WM_GETICON, WPARAM(ICON_SMALL as usize), LPARAM(0)) };
+    if small_icon.0 != 0 {
+        // Tauri's window icon sets ICON_SMALL. Windows uses ICON_BIG for the taskbar.
+        // The window retains the small icon handle for its lifetime, so it is safe to reuse.
+        unsafe {
+            SendMessageW(
+                hwnd,
+                WM_SETICON,
+                WPARAM(ICON_BIG as usize),
+                LPARAM(small_icon.0),
+            );
+        }
+    } else {
+        warn!("Window has no small icon to use for its taskbar icon");
+    }
+}
+
 // Creating a window on the mouse monitor
 fn build_window(label: &str, title: &str) -> (Window, bool) {
     use mouse_position::mouse_position::{Mouse, Position};
@@ -75,6 +107,8 @@ fn build_window(label: &str, title: &str) -> (Window, bool) {
     match app_handle.get_window(label) {
         Some(v) => {
             info!("Window existence: {}", label);
+            #[cfg(target_os = "windows")]
+            set_taskbar_icon(&v);
             v.set_focus().unwrap();
             (v, true)
         }
@@ -116,6 +150,8 @@ fn build_window(label: &str, title: &str) -> (Window, bool) {
                 builder = builder.transparent(true).decorations(false);
             }
             let window = builder.build().unwrap();
+            #[cfg(target_os = "windows")]
+            set_taskbar_icon(&window);
 
             if label != "screenshot" {
                 #[cfg(not(target_os = "linux"))]
