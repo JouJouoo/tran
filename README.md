@@ -1,4 +1,4 @@
-<img width="120px" src="public/icon.svg" align="left"/>
+<img width="120px" src="public/icon.png" align="left"/>
 
 # tran
 
@@ -46,7 +46,7 @@ API 地址固定为官方地址：`https://api.deepseek.com/chat/completions`。
 本地构建后的 NSIS 安装包位于：
 
 ```text
-src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/tran_1.0.0_x64-setup.exe
+src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/tran_1.0.1_x64-setup.exe
 ```
 
 双击安装包即可安装。
@@ -70,7 +70,7 @@ pnpm tauri build --target x86_64-pc-windows-msvc
 
 ## 更新
 
-更新服务连接到 [JouJouoo/tran Releases](https://github.com/JouJouoo/tran/releases)，当前版本从 `1.0.0` 开始。
+更新服务连接到 [JouJouoo/tran Releases](https://github.com/JouJouoo/tran/releases)，当前版本为 `1.0.1`。
 
 ## 许可证
 

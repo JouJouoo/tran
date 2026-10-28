@@ -34,7 +34,7 @@ import useMeasure from 'react-use-measure';
 import * as builtinCollectionServices from '../../../../services/collection';
 import { sourceLanguageAtom, targetLanguageAtom } from '../LanguageArea';
 import { useConfig, useToastStyle, useVoice } from '../../../../hooks';
-import { sourceTextAtom, detectLanguageAtom } from '../SourceArea';
+import { sourceTextAtom, detectLanguageAtom, imageTranslateBase64Atom } from '../SourceArea';
 import { invoke_plugin } from '../../../../utils/invoke_plugin';
 import * as builtinServices from '../../../../services/translate';
 import * as builtinTtsServices from '../../../../services/tts';
@@ -72,8 +72,13 @@ export default function TargetArea(props) {
     const [error, setError] = useState('');
 
     const sourceText = useAtomValue(sourceTextAtom);
+    const imageTranslateBase64 = useAtomValue(imageTranslateBase64Atom);
     const sourceLanguage = useAtomValue(sourceLanguageAtom);
     const targetLanguage = useAtomValue(targetLanguageAtom);
+    const firstEnabledServiceIndex = translateServiceInstanceList.findIndex((serviceInstanceKey) => {
+        const instanceConfig = serviceInstanceConfigMap[serviceInstanceKey] ?? {};
+        return instanceConfig.enable ?? true;
+    });
     const [autoCopy] = useConfig('translate_auto_copy', 'disable');
     const [hideWindow] = useConfig('translate_hide_window', false);
     const [clipboardMonitor] = useConfig('clipboard_monitor', false);
@@ -82,6 +87,8 @@ export default function TargetArea(props) {
     const [ttsPluginInfo, setTtsPluginInfo] = useState();
     const { t } = useTranslation();
     const textAreaRef = useRef();
+    const lastImageRequestRef = useRef('');
+    const lastImageTargetLanguageRef = useRef('');
     const toastStyle = useToastStyle();
     const speak = useVoice();
     const theme = useTheme();
@@ -94,17 +101,27 @@ export default function TargetArea(props) {
 
     // listen to translation
     useEffect(() => {
-        setResult('');
-        setError('');
+        if (!imageTranslateBase64) {
+            lastImageRequestRef.current = '';
+            lastImageTargetLanguageRef.current = '';
+        }
+        const sameImageRequest =
+            imageTranslateBase64 &&
+            lastImageRequestRef.current === imageTranslateBase64 &&
+            lastImageTargetLanguageRef.current === targetLanguage;
+        if (!sameImageRequest) {
+            setResult('');
+            setError('');
+        }
         if (
-            sourceText.trim() !== '' &&
+            (sourceText.trim() !== '' || imageTranslateBase64 !== '') &&
             sourceLanguage &&
             targetLanguage &&
             autoCopy !== null &&
             hideWindow !== null &&
             clipboardMonitor !== null
         ) {
-            if (autoCopy === 'source' && !clipboardMonitor) {
+            if (autoCopy === 'source' && !clipboardMonitor && !imageTranslateBase64) {
                 writeText(sourceText).then(() => {
                     if (hideWindow) {
                         sendNotification({ title: t('common.write_clipboard'), body: sourceText });
@@ -115,6 +132,7 @@ export default function TargetArea(props) {
         }
     }, [
         sourceText,
+        imageTranslateBase64,
         sourceLanguage,
         targetLanguage,
         autoCopy,
@@ -165,6 +183,117 @@ export default function TargetArea(props) {
         translateID[index] = id;
 
         const translateServiceName = getServiceName(currentTranslateServiceInstanceKey);
+
+        if (imageTranslateBase64) {
+            if (index !== firstEnabledServiceIndex) {
+                setIsLoading(false);
+                return;
+            }
+
+            if (
+                lastImageRequestRef.current === imageTranslateBase64 &&
+                lastImageTargetLanguageRef.current === targetLanguage
+            ) return;
+
+            const deepseekInstanceKey = translateServiceInstanceList.find((serviceInstanceKey) => {
+                const instanceConfig = serviceInstanceConfigMap[serviceInstanceKey] ?? {};
+                return (
+                    !whetherPluginService(serviceInstanceKey) &&
+                    getServiceName(serviceInstanceKey) === 'deepseek' &&
+                    (instanceConfig.enable ?? true)
+                );
+            });
+
+            if (!deepseekInstanceKey) {
+                setError('Add and configure DeepSeek in translation services to translate screenshots.');
+                setIsLoading(false);
+                setHide(false);
+                return;
+            }
+            if (currentTranslateServiceInstanceKey !== deepseekInstanceKey) {
+                setCurrentTranslateServiceInstanceKey(deepseekInstanceKey);
+                return;
+            }
+
+            const deepseekConfig = serviceInstanceConfigMap[deepseekInstanceKey] ?? {};
+            if (!deepseekConfig.apiKey) {
+                setError('Configure a DeepSeek API key to translate screenshots.');
+                setIsLoading(false);
+                setHide(false);
+                return;
+            }
+
+            const deepseekLanguages = builtinServices.deepseek.Language;
+            const imageTargetLanguage = deepseekLanguages[targetLanguage];
+            if (!imageTargetLanguage) {
+                setError('DeepSeek does not support the selected target language.');
+                setIsLoading(false);
+                setHide(false);
+                return;
+            }
+
+            lastImageRequestRef.current = imageTranslateBase64;
+            lastImageTargetLanguageRef.current = targetLanguage;
+            setIsLoading(true);
+            setHide(true);
+            const setHideOnce = invokeOnce(setHide);
+            builtinServices.deepseek
+                .translateImage(imageTranslateBase64, deepseekLanguages.auto, imageTargetLanguage, {
+                    config: deepseekConfig,
+                    setResult: (value) => {
+                        if (translateID[index] !== id) return;
+                        setResult(value);
+                        setHideOnce(false);
+                    },
+                })
+                .then(
+                    (value) => {
+                        if (translateID[index] !== id) return;
+                        const translatedText = typeof value === 'string' ? value.trim() : value;
+                        setResult(translatedText);
+                        setIsLoading(false);
+                        if (translatedText !== '') setHideOnce(false);
+                        if (!historyDisable) {
+                            addToHistory('[Screenshot image]', 'auto', targetLanguage, deepseekInstanceKey, translatedText);
+                        }
+                        if (index === firstEnabledServiceIndex && !clipboardMonitor) {
+                            switch (autoCopy) {
+                                case 'target':
+                                    writeText(translatedText).then(() => {
+                                        if (hideWindow) {
+                                            sendNotification({
+                                                title: t('common.write_clipboard'),
+                                                body: translatedText,
+                                            });
+                                        }
+                                    });
+                                    break;
+                                case 'source_target':
+                                    writeText(`[Screenshot image]\n\n${translatedText}`).then(() => {
+                                        if (hideWindow) {
+                                            sendNotification({
+                                                title: t('common.write_clipboard'),
+                                                body: `[Screenshot image]\n\n${translatedText}`,
+                                            });
+                                        }
+                                    });
+                                    break;
+                                default:
+                                    break;
+                            }
+                        }
+                    },
+                    (error) => {
+                        if (translateID[index] !== id) return;
+                        setError(error.toString());
+                        setIsLoading(false);
+                        setHide(false);
+                        lastImageRequestRef.current = '';
+                        lastImageTargetLanguageRef.current = '';
+                    }
+                );
+            return;
+        }
 
         if (whetherPluginService(currentTranslateServiceInstanceKey)) {
             const pluginInfo = pluginList['translate'][translateServiceName];
@@ -376,7 +505,7 @@ export default function TargetArea(props) {
     return (
         <Card
             shadow='none'
-            className='rounded-[10px]'
+            className={`rounded-[10px] ${imageTranslateBase64 && index !== firstEnabledServiceIndex ? 'hidden' : ''}`}
         >
             <Toaster />
             <CardHeader
@@ -391,6 +520,7 @@ export default function TargetArea(props) {
                                 size='sm'
                                 variant='solid'
                                 className='bg-transparent'
+                                isDisabled={Boolean(imageTranslateBase64)}
                                 startContent={
                                     whetherPluginService(currentTranslateServiceInstanceKey) ? (
                                         <img

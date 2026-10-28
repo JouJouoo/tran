@@ -53,14 +53,17 @@ export function Config(props) {
             onSubmit={(event) => {
                 event.preventDefault();
                 setIsLoading(true);
-                translate('hello', Language.auto, Language.zh_cn, { config })
+                // Persist the provider even if its connectivity check fails. This
+                // lets users fix the key/network without losing the service entry.
+                setConfig(config, true);
+                updateServiceList(instanceKey);
+                translate('hello', Language.auto, Language.zh_cn, { config, stream: false, timeoutMs: 20_000 })
                     .then(() => {
-                        setConfig(config, true);
-                        updateServiceList(instanceKey);
                         onClose();
                     })
                     .catch((error) => {
-                        toast.error(`${t('config.service.test_failed')}${error}`, { style: toastStyle });
+                        const message = error instanceof Error ? error.message : String(error);
+                        toast.error(`${t('config.service.test_failed')}${message}`, { style: toastStyle });
                     })
                     .finally(() => setIsLoading(false));
             }}

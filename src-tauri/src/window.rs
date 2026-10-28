@@ -91,6 +91,20 @@ fn build_window(label: &str, title: &str) -> (Window, bool) {
             .title(title)
             .visible(false);
 
+            // Dynamically created windows do not inherit the main window icon.
+            // Apply the bundled icon so Windows uses it in the taskbar as well.
+            let window_icon = image::load_from_memory(include_bytes!("../icons/128x128.png"))
+                .expect("Failed to load window icon")
+                .into_rgba8();
+            let (icon_width, icon_height) = window_icon.dimensions();
+            builder = builder
+                .icon(tauri::Icon::Rgba {
+                    rgba: window_icon.into_raw(),
+                    width: icon_width,
+                    height: icon_height,
+                })
+                .expect("Failed to set window icon");
+
             #[cfg(target_os = "macos")]
             {
                 builder = builder

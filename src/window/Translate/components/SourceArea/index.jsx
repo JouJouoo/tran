@@ -16,7 +16,6 @@ import { atom, useAtom } from 'jotai';
 import { getServiceName, getServiceSouceType, ServiceSourceType } from '../../../../utils/service_instance';
 import { useConfig, useSyncAtom, useVoice, useToastStyle } from '../../../../hooks';
 import { invoke_plugin } from '../../../../utils/invoke_plugin';
-import * as recognizeServices from '../../../../services/recognize';
 import * as builtinTtsServices from '../../../../services/tts';
 import detect from '../../../../utils/lang_detect';
 import { store } from '../../../../utils/store';
@@ -25,6 +24,7 @@ import { debug } from 'tauri-plugin-log-api';
 
 export const sourceTextAtom = atom('');
 export const detectLanguageAtom = atom('');
+export const imageTranslateBase64Atom = atom('');
 
 let unlisten = null;
 let timer = null;
@@ -34,6 +34,7 @@ export default function SourceArea(props) {
     const [appFontSize] = useConfig('app_font_size', 16);
     const [sourceText, setSourceText, syncSourceText] = useSyncAtom(sourceTextAtom);
     const [detectLanguage, setDetectLanguage] = useAtom(detectLanguageAtom);
+    const [, setImageTranslateBase64] = useAtom(imageTranslateBase64Atom);
     const [incrementalTranslate] = useConfig('incremental_translate', false);
     const [dynamicTranslate] = useConfig('dynamic_translate', false);
     const [deleteNewline] = useConfig('translate_delete_newline', false);
@@ -61,91 +62,23 @@ export default function SourceArea(props) {
         setDetectLanguage('');
         if (text === '[INPUT_TRANSLATE]') {
             setWindowType('[INPUT_TRANSLATE]');
+            setImageTranslateBase64('');
             appWindow.show();
             appWindow.setFocus();
             setSourceText('', true);
         } else if (text === '[IMAGE_TRANSLATE]') {
             setWindowType('[IMAGE_TRANSLATE]');
+            setImageTranslateBase64('');
+            setSourceText('', true);
             const base64 = await invoke('get_base64');
-            const serviceInstanceKey = recognizeServiceList[0];
-            if (getServiceSouceType(serviceInstanceKey) === ServiceSourceType.PLUGIN) {
-                if (recognizeLanguage in pluginList['recognize'][getServiceName(serviceInstanceKey)].language) {
-                    const pluginConfig = serviceInstanceConfigMap[serviceInstanceKey];
-
-                    let [func, utils] = await invoke_plugin('recognize', getServiceName(serviceInstanceKey));
-                    func(
-                        base64,
-                        pluginList['recognize'][getServiceName(serviceInstanceKey)].language[recognizeLanguage],
-                        {
-                            config: pluginConfig,
-                            utils,
-                        }
-                    ).then(
-                        (v) => {
-                            let newText = v.trim();
-                            if (deleteNewline) {
-                                newText = v.replace(/\-\s+/g, '').replace(/\s+/g, ' ');
-                            } else {
-                                newText = v.trim();
-                            }
-                            if (incrementalTranslate) {
-                                setSourceText((old) => {
-                                    return old + ' ' + newText;
-                                });
-                            } else {
-                                setSourceText(newText);
-                            }
-                            detect_language(newText).then(() => {
-                                syncSourceText();
-                            });
-                        },
-                        (e) => {
-                            setSourceText(e.toString());
-                        }
-                    );
-                } else {
-                    setSourceText('Language not supported');
-                }
-            } else {
-                if (recognizeLanguage in recognizeServices[getServiceName(serviceInstanceKey)].Language) {
-                    const instanceConfig = serviceInstanceConfigMap[serviceInstanceKey];
-                    recognizeServices[getServiceName(serviceInstanceKey)]
-                        .recognize(
-                            base64,
-                            recognizeServices[getServiceName(serviceInstanceKey)].Language[recognizeLanguage],
-                            {
-                                config: instanceConfig,
-                            }
-                        )
-                        .then(
-                            (v) => {
-                                let newText = v.trim();
-                                if (deleteNewline) {
-                                    newText = v.replace(/\-\s+/g, '').replace(/\s+/g, ' ');
-                                } else {
-                                    newText = v.trim();
-                                }
-                                if (incrementalTranslate) {
-                                    setSourceText((old) => {
-                                        return old + ' ' + newText;
-                                    });
-                                } else {
-                                    setSourceText(newText);
-                                }
-                                detect_language(newText).then(() => {
-                                    syncSourceText();
-                                });
-                            },
-                            (e) => {
-                                setSourceText(e.toString());
-                            }
-                        );
-                } else {
-                    setSourceText('Language not supported');
-                }
+            if (!base64) {
+                toast.error('Could not read the screenshot image', { style: toastStyle });
+                return;
             }
+            setImageTranslateBase64(base64);
         } else {
             setWindowType('[SELECTION_TRANSLATE]');
+            setImageTranslateBase64('');
             let newText = text.trim();
             if (deleteNewline) {
                 newText = text.replace(/\-\s+/g, '').replace(/\s+/g, ' ');
@@ -260,6 +193,7 @@ export default function SourceArea(props) {
 
     let sourceTextChangeTimer = null;
     const changeSourceText = async (text) => {
+        setImageTranslateBase64('');
         setDetectLanguage('');
         await setSourceText(text);
         if (dynamicTranslate) {
@@ -436,6 +370,7 @@ export default function SourceArea(props) {
                                     isIconOnly
                                     isDisabled={sourceText === ''}
                                     onPress={() => {
+                                        setImageTranslateBase64('');
                                         setSourceText('');
                                     }}
                                 >

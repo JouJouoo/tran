@@ -1,4 +1,4 @@
-<img width="200px" src="public/icon.svg" align="left"/>
+<img width="200px" src="public/icon.png" align="left"/>
 
 # Pot (간편 번역기)
 
